@@ -4,15 +4,18 @@ const VSHADER_SOURCE =
   "attribute vec4 a_Color;\n" +     // Surface base color
   "attribute vec4 a_Normal;\n" +    // Surface orientation
   "uniform mat4 u_MvpMatrix;\n" +
+  "uniform mat4 u_NormalMatrix;\n" +    // Transformation matrix of normal
   "uniform vec3 u_LightColor;\n" +      // Light Color
   "uniform vec3 u_LightDirection;\n" +  // Normalized world coordinate (Directional Light direction)
+  "uniform vec3 u_AmbientLight;\n" +
   "varying vec4 v_Color;\n" +
   "void main() {\n" +
   " gl_Position = u_MvpMatrix * a_Position;\n" +
-  " vec3 normal = normalize(vec3(a_Normal));\n" +
+  " vec3 normal = normalize(vec3(u_NormalMatrix * a_Normal));\n" + // Normal due to the model matrix
   " float nDotL = max(dot(u_LightDirection, normal), 0.0);\n" +
   " vec3 diffuse = u_LightColor * a_Color.rgb * nDotL;\n" +
-  " v_Color = vec4(diffuse, a_Color.a);\n" +
+  " vec3 ambient = u_AmbientLight * a_Color.rgb;\n" +
+  " v_Color = vec4(diffuse + ambient, a_Color.a);\n" + // Surface color due to diffuse and ambient reflection
   "}\n";
 
 const FSHADER_SOURCE =
@@ -53,30 +56,44 @@ function main() {
   }
 
   const u_MvpMatrix = gl.getUniformLocation(gl.program, "u_MvpMatrix");
+  const u_NormalMatrix = gl.getUniformLocation(gl.program, 'u_NormalMatrix')
   const u_LightColor = gl.getUniformLocation(gl.program, "u_LightColor");
   const u_LightDirection = gl.getUniformLocation(gl.program, "u_LightDirection");
+  const u_AmbientLight = gl.getUniformLocation(gl.program, 'u_AmbientLight');
 
-  gl.uniform3f(u_LightColor, 0.0, 1.0, 0.0);
-  const lightDirection = new Vector3([0.5, 3.0, 4.0]);
+  if (!u_MvpMatrix || !u_NormalMatrix || !u_LightColor || !u_LightDirection || !u_AmbientLight) { 
+    console.log('Failed to get the storage location');
+    return;
+  }
+
+  gl.uniform3f(u_AmbientLight, 0.2, 0.2, 0.2);
+  gl.uniform3f(u_LightColor, 1.0, 1.0, 1.0);
+  const lightDirection = new Vector3([0.0, 3.0, 4.0]);
   lightDirection.normalize();
   gl.uniform3fv(u_LightDirection, lightDirection.elements);
 
-  const modelMatrix = new Matrix4();
-  const viewMatrix = new Matrix4();
-  const projMatrix = new Matrix4();
-  const mvpMatrix = new Matrix4();
+  const modelMatrix = new Matrix4(); // Model matrix
+  const mvpMatrix = new Matrix4(); // Model view projection matrix
+  const normalMatrix = new Matrix4(); // Transformation matrix for normals
 
-  //document.onkeydown = (ev) => keydown(ev, gl, n, u_ViewMatrix, viewMatrix);
+  // Calculate the model matrix
+  modelMatrix.setTranslate(0, 0.1, 0); // Traslation to y-axis direction
+  modelMatrix.rotate(40, 1, 0, 1);  // Rotate 90 degrees counterclockwise around the z-axis
 
   // Calculate the view and projection matrix
-//   modelMatrix.setRotate(45, 0, 1, 0);
-//   viewMatrix.setLookAt(0, 0, 5, 0, 0, -100, 0, 1, 0);
-  mvpMatrix.setPerspective(30, 1, 1, 100);
+  mvpMatrix.setPerspective(30, canvas.width/canvas.height, 1, 100);
   mvpMatrix.lookAt(3, 3, 7, 0, 0, 0, 0, 1, 0);
+  mvpMatrix.multiply(modelMatrix)
   //projMatrix.setPerspective(60.0, canvas.width / canvas.clientHeight, 1, 100);
   //mvpMatrix.set(projMatrix).multiply(viewMatrix).multiply(modelMatrix);
 
   gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
+
+  // Compute magic matrix
+  normalMatrix.setInverseOf(modelMatrix);
+  normalMatrix.transpose();
+
+  gl.uniformMatrix4fv(u_NormalMatrix, false, normalMatrix.elements)
 
   gl.enable(gl.DEPTH_TEST);
   gl.enable(gl.POLYGON_OFFSET_FILL);
@@ -142,12 +159,12 @@ function initVertexBuffers(gl) {
   ]);
 
   const colors = new Float32Array([     // Colors
-    1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  // v0-v1-v2-v3 front(white)
-    1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  // v0-v3-v4-v5 right(white)
-    1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  // v0-v5-v6-v1 up(white)
-    1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  // v1-v6-v7-v2 left(white)
-    1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  // v7-v4-v3-v2 down(white)
-    1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0,  1.0, 1.0, 1.0   // v4-v7-v6-v5 back(white)
+  1, 0, 0,   1, 0, 0,   1, 0, 0,  1, 0, 0,     // v0-v1-v2-v3 front
+  1, 0, 0,   1, 0, 0,   1, 0, 0,  1, 0, 0,     // v0-v3-v4-v5 right
+  1, 0, 0,   1, 0, 0,   1, 0, 0,  1, 0, 0,     // v0-v5-v6-v1 up
+  1, 0, 0,   1, 0, 0,   1, 0, 0,  1, 0, 0,     // v1-v6-v7-v2 left
+  1, 0, 0,   1, 0, 0,   1, 0, 0,  1, 0, 0,     // v7-v4-v3-v2 down
+  1, 0, 0,   1, 0, 0,   1, 0, 0,  1, 0, 0      // v4-v7-v6-v5 back
 ]);
 
   const normals = new Float32Array([    // Normal
