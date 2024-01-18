@@ -269,13 +269,15 @@ Return information about pname for the program object specified by program. The 
 - **pname** - Specifies any one of `gl.DELETE*STATUS, gl.LINK_STATUS, gl.VALIDATE_STATUS, gl.ATTACHED_SHADERS, gl.ACTIVE_ATTRIBUTES, or gl.ACTIVE_UNIFORMS`.
 
 ### Return value
+
 Depending on pname, the following values can be returned:
-* **gl.DELETE_STATUS** - Whether the program has been deleted (true or false)
-* **gl.LINK_STATUS** - Whether the program was linked successfully (true or false)
-* **gl.VALIDATE_STATUS** - Whether the program was validated successfully (true or false)
-* **gl.ATTACHED_SHADERS** - The number of attached shader objects
-* **gl.ACTIVE_ATTRIBUTES** - The number of attribute variables in the vertex shader
-* **gl.ACTIVE_UNIFORMS** - The number of uniform variables
+
+- **gl.DELETE_STATUS** - Whether the program has been deleted (true or false)
+- **gl.LINK_STATUS** - Whether the program was linked successfully (true or false)
+- **gl.VALIDATE_STATUS** - Whether the program was validated successfully (true or false)
+- **gl.ATTACHED_SHADERS** - The number of attached shader objects
+- **gl.ACTIVE_ATTRIBUTES** - The number of attribute variables in the vertex shader
+- **gl.ACTIVE_UNIFORMS** - The number of uniform variables
 
 ### Errors
 
@@ -284,3 +286,31 @@ Depending on pname, the following values can be returned:
 ```
 If linking succeeded, you are returned an executable program object. Otherwise, you can get the information about the linking from the information log of the program object with gl.getProgramInfoLog().
 ```
+
+---
+
+## gl.getProgramInfoLog(program)
+
+---
+
+Retrieve the information log from the program object specified by program.
+
+### Parameters
+
+- **program** - Specifies the program object from which the information log is retrieved.
+
+### Return value
+
+The string containing the logged information
+
+### Errors
+
+- `None`
+
+---
+## gl.useProgram(program))
+---
+
+This function tell's the WebGL system that the program object specified by program will be used.
+
+One powerful feature of this function is that you can use it during drawing to switch between multiple shaders prepared in advance.
